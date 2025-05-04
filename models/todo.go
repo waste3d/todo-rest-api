@@ -7,3 +7,11 @@ type Todo struct {
 	Title     string `json:"title"`
 	Completed bool   `json:"completed"`
 }
+
+type User struct {
+	gorm.Model
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+	Todos    []Todo `json:"todos"`
+}
