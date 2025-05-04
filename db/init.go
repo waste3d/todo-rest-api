@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"log"
 	"todoapp/models"
 
@@ -20,9 +19,7 @@ func Connect() {
 		log.Fatal("error database connect: ", err)
 	}
 
-	err = DB.AutoMigrate(&models.Todo{})
-	if err != nil {
-		log.Fatal("migrate error: ", err)
+	if err := DB.AutoMigrate(&models.Todo{}); err != nil {
+		log.Fatal("Migration failed:", err)
 	}
-	fmt.Println("Connected and migrate.")
 }

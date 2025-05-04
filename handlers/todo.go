@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"todoapp/db"
@@ -9,27 +11,45 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func getIDParam(ctx *gin.Context) (uint, error) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		return 0, errors.New("Invalid ID format")
+	}
+	return uint(id), nil
+}
+
 func GetTodos(ctx *gin.Context) {
 	var todos []models.Todo
-	db.DB.Find(&todos)
+	if err := db.DB.Find(&todos).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read todos"})
+		return
+	}
 	ctx.JSON(http.StatusOK, todos)
 }
 
 func CreateTodo(ctx *gin.Context) {
-	var todo models.Todo
-	if err := ctx.ShouldBindJSON(&todo); err != nil {
+	var input models.Todo
+
+	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	db.DB.Create(&todo)
-	ctx.JSON(http.StatusOK, todo)
+	if err := db.DB.Create(&input).Error; err != nil {
+		log.Print("db error:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create todo"})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, input)
 }
 
 func UpdateTodo(ctx *gin.Context) {
-	id, err := strconv.Atoi(ctx.Param("id"))
+	id, err := getIDParam(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -39,35 +59,37 @@ func UpdateTodo(ctx *gin.Context) {
 		return
 	}
 
-	if err := ctx.ShouldBindJSON(&todo); err != nil {
+	var input models.Todo
+	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	todo.ID = uint(id)
+	todo.Title = input.Title
+	todo.Completed = input.Completed
+
 	if err := db.DB.Save(&todo).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update todo"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update todo"})
 		return
 	}
-
 	ctx.JSON(http.StatusOK, todo)
 }
 
 func DeleteTodo(ctx *gin.Context) {
-	id, err := strconv.Atoi(ctx.Param("id"))
+	id, err := getIDParam(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	var todo models.Todo
 	if err := db.DB.First(&todo, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 		return
 	}
 
 	if err := db.DB.Delete(&todo).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete todo"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete todo"})
 		return
 	}
 
