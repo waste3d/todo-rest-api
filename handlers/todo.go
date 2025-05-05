@@ -22,6 +22,18 @@ func getIDParam(ctx *gin.Context) (uint, error) {
 
 func GetTodos(ctx *gin.Context) {
 	var todos []models.Todo
+
+	completedParam := ctx.Query("completed")
+
+	if completedParam != "" {
+		completed, err := strconv.ParseBool(completedParam)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid 'completed' query param"})
+			return
+		}
+		db.DB = db.DB.Where("completed = ?", completed)
+	}
+
 	if err := db.DB.Find(&todos).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read todos"})
 		return
@@ -94,4 +106,24 @@ func DeleteTodo(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Todo deleted successfully"})
+}
+
+func ToogleTodoStatus(ctx *gin.Context) {
+	id, err := getIDParam(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var todo models.Todo
+	if err := db.DB.First(&todo, id).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+		return
+	}
+
+	if err := db.DB.Save(&todo).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to toogle todo"})
+	}
+
+	ctx.JSON(http.StatusOK, todo)
 }
