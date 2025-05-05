@@ -23,7 +23,7 @@ func getIDParam(ctx *gin.Context) (uint, error) {
 func GetTodos(ctx *gin.Context) {
 	var todos []models.Todo
 
-	completedParam := ctx.Query("completed")
+	completedParam := ctx.DefaultQuery("completed", "")
 
 	if completedParam != "" {
 		completed, err := strconv.ParseBool(completedParam)
